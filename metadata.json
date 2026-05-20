@@ -1,0 +1,6 @@
+{
+  "name": "EntityOS",
+  "description": "Premium machine-readable data utility for luxury real estate professionals. Transforms unorganized profiles into optimized llms.txt files.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
