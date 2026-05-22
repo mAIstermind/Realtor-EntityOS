@@ -29,7 +29,7 @@ try {
 // Teable / Database Configuration & Dual-Mode Relational DB Layer
 // ------------------------------------------------------------------------------
 const TEABLE_API_URL = process.env.TEABLE_API_URL || 'https://app.teable.io/api';
-const TEABLE_API_KEY = process.env.TEABLE_API_KEY || 'teable_accXXZrNentZbczYXBq_jH3AWZb2HYSJVhCZutsNu9FV2cAyDX6rn17iM9tuBZk=';
+const TEABLE_API_KEY = process.env.TEABLE_API_TOKEN || process.env.TEABLE_API_KEY || 'teable_accXXZrNentZbczYXBq_jH3AWZb2HYSJVhCZutsNu9FV2cAyDX6rn17iM9tuBZk=';
 const TEABLE_AGENT_PROFILES_TABLE_ID = process.env.TEABLE_AGENT_PROFILES_TABLE_ID || 'tblWclyP1kzKFMTJaVv';
 const TEABLE_LOCAL_KNOWLEDGE_TABLE_ID = process.env.TEABLE_LOCAL_KNOWLEDGE_TABLE_ID || 'tbl1NZIlyyqGcMmXhTu';
 const TEABLE_VERIFIED_REVIEWS_TABLE_ID = process.env.TEABLE_VERIFIED_REVIEWS_TABLE_ID || 'tblReviewsPlaceholder';
