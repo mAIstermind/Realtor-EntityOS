@@ -835,88 +835,122 @@ app.post("/api/engine/index-submit", async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------
-// Interactive Stripe Webhook endpoint (With frontend simulation bypass)
+// Interactive Stripe Webhook endpoint
 // ------------------------------------------------------------------------------
-const webhookHandler = async (req: any, res: any) => {
+import Stripe from 'stripe';
+import { teableDB } from './server/db/teable';
+
+const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
+  apiVersion: '2026-01-28' as any, // Typed correctly if using matching Stripe types
+});
+
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const isSimulation = req.headers['x-simulation'] === 'true';
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_dummy';
+  let event: Stripe.Event;
 
-  let event: any;
-
-  if (isSimulation) {
-    try {
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      console.log(`[Stripe Simulator] Signature bypassed. Simulating event type: ${event.type}`);
-    } catch (e: any) {
-      return res.status(400).send(`Simulation payload parse failed: ${e.message}`);
-    }
-  } else {
-    // Production signature check
-    const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_dummy';
-    try {
-      // In production, we'd use stripe SDK:
-      // event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSecret);
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    } catch (err: any) {
-      console.warn(`[Stripe Security] Webhook signature invalid. Falling back for dev testing.`);
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    }
+  try {
+    event = stripeClient.webhooks.constructEvent(
+      req.body, 
+      sig as string, 
+      stripeWebhookSecret
+    );
+  } catch (err: any) {
+    console.error(`[Security Alert] Webhook signature verification failed: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Acknowledge event immediately
+  // Acknowledge receipt of the event immediately to prevent Stripe retry timeouts
   res.json({ received: true });
 
-  // Handle life cycle event
   try {
-    const dataObj = event.data?.object || {};
-    const customerId = dataObj.customer || 'cus_MikeBerry123';
-    
-    // Determine new status based on event type
-    let newStatus: 'active' | 'past_due' | 'canceled' = 'active';
-    if (event.type === 'invoice.payment_failed' || event.type === 'customer.subscription.past_due') {
-      newStatus = 'past_due';
-    } else if (event.type === 'customer.subscription.deleted') {
-      newStatus = 'canceled';
-    } else if (event.type === 'invoice.payment_succeeded' || event.type === 'customer.subscription.created') {
-      newStatus = 'active';
-    }
+    let customerId = '';
+    let newStatus = 'active';
 
-    console.log(`[Stripe Webhook] Customer ${customerId} mapped to new Subscription_Status: ${newStatus}`);
-
-    // 1. Locate the agent in our relational mock database
-    const agent = mockAgents.find(a => a.Stripe_Customer_ID === customerId);
-    if (agent) {
-      agent.Subscription_Status = newStatus;
-      agent.Is_Publicly_Accessible = newStatus === 'active';
-      console.log(`[Local Relational DB] Updated agent ${agent.Agent_Name} to status: ${newStatus}`);
-      
-      // 2. Patch to Teable if table is set up
-      try {
-        await fetch(`${TEABLE_API_URL}/table/${TEABLE_AGENT_PROFILES_TABLE_ID}/record/${agent.id}`, {
-          method: 'PATCH',
-          headers: { 
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${TEABLE_API_KEY}` 
-          },
-          body: JSON.stringify({
-            fields: {
-              Subscription_Status: newStatus,
-              Is_Publicly_Accessible: newStatus === 'active'
-            }
-          })
-        });
-        console.log(`[Teable DB] Success! Patched payment status for agent ${agent.id} in cloud.`);
-      } catch (dbErr) {
-        // Safe skip
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        customerId = sub.customer as string;
+        newStatus = sub.status;
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        customerId = invoice.customer as string;
+        newStatus = 'past_due';
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription;
+        customerId = sub.customer as string;
+        newStatus = 'canceled';
+        break;
       }
     }
-  } catch (error: any) {
-    console.error("[Stripe Webhook processing failed]", error);
-  }
-};
 
-app.post("/api/billing/webhook", express.json(), webhookHandler);
-app.post("/api/webhooks/stripe", express.json(), webhookHandler);
+    if (customerId) {
+      console.log(`[Stripe Webhook] Customer ${customerId} status updated to: ${newStatus}`);
+      
+      const searchRes = await teableDB.getRecords(process.env.TEABLE_AGENT_PROFILES_TABLE_ID || '', {
+        filter: `Stripe_Customer_ID='${customerId}'`
+      });
+
+      if (searchRes && searchRes.data && searchRes.data.records && searchRes.data.records.length > 0) {
+        const recordId = searchRes.data.records[0].id;
+        
+        await teableDB.updateRecord(process.env.TEABLE_AGENT_PROFILES_TABLE_ID || '', recordId, {
+          Subscription_Status: newStatus,
+          Is_Publicly_Accessible: newStatus === 'active'
+        });
+        console.log(`[Teable DB] Agent record ${recordId} updated to status: ${newStatus}`);
+      }
+    }
+  } catch (dbErr: any) {
+    console.error(`[Data Sync Error] Failed to update Teable profile state: ${dbErr.message}`);
+  }
+});
+
+app.post("/api/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
+  // Legacy route alias
+  res.redirect(307, '/api/billing/webhook');
+});
+
+// ------------------------------------------------------------------------------
+// Create Subscription Intent Route
+// ------------------------------------------------------------------------------
+app.post('/api/billing/create-subscription-intent', express.json(), async (req, res) => {
+  try {
+    const { agentId, planType } = req.body;
+    if (!agentId) return res.status(400).json({ error: 'Missing agentId' });
+    
+    // Choose price based on planType
+    let priceId = process.env.STRIPE_PRICE_MONTHLY;
+    if (planType === 'quarterly') priceId = process.env.STRIPE_PRICE_QUARTERLY;
+    if (planType === 'annual') priceId = process.env.STRIPE_PRICE_ANNUAL;
+
+    // Create a generic customer if not exist, or you would look it up from Teable
+    const customer = await stripeClient.customers.create({
+      metadata: { agentId }
+    });
+
+    const subscription = await stripeClient.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    const invoice = subscription.latest_invoice as Stripe.Invoice;
+    const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err: any) {
+    console.error('[Stripe Intent Error]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ------------------------------------------------------------------------------
 // Legacy Dashboard API (Includes payment status fields)
@@ -1368,6 +1402,90 @@ Follow these rules strictly:
   }
 });
 
+
+// ------------------------------------------------------------------------------
+// Native Automation Dispatcher (OpenClaw -> Backend)
+// ------------------------------------------------------------------------------
+import OpenAI from 'openai';
+const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
+
+const dispatchRateLimits = new Map<string, number>();
+
+app.post('/api/automation/dispatch', express.json(), async (req, res) => {
+  const { propertyId, listing_description, micro_niche, agent_name, agent_record_id, root_domain, profile_url } = req.body;
+  if (!propertyId || !agent_record_id) return res.status(400).json({ error: 'Missing required payload data' });
+
+  const now = Date.now();
+  const lastCall = dispatchRateLimits.get(propertyId) || 0;
+  if (now - lastCall < 10000) {
+    return res.status(429).json({ error: 'Duplicate Request Suppressed' });
+  }
+  dispatchRateLimits.set(propertyId, now);
+
+  // Acknowledge immediately to free up OpenClaw agent
+  res.json({ status: 'processing', message: 'Automation loop triggered' });
+
+  try {
+    let question_prompt = '';
+    let structured_answer = '';
+
+    const systemPrompt = `You are the core optimization engine for EntityOS. Take this raw real estate asset data and convert it into a dense, answer-first framework optimized for AI engine synthesis.
+Listing Description: ${listing_description}
+Neighborhood: ${micro_niche}
+Agent: ${agent_name}
+Output a strict JSON matching this format: {"question_prompt": "...", "structured_answer": "..."}`;
+
+    try {
+      if (!ai || process.env.GEMINI_API_KEY === 'dummy_key_to_prevent_crash') throw new Error('Gemini unavailable');
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: systemPrompt,
+        config: { temperature: 0.2 }
+      });
+      const parsed = JSON.parse((response.text || "").replace(/^```json|```$/g, '').trim());
+      question_prompt = parsed.question_prompt;
+      structured_answer = parsed.structured_answer;
+    } catch (geminiErr: any) {
+      console.warn('[Automation] Gemini failed, falling back to OpenAI...', geminiErr.message);
+      const openAiRes = await openaiClient.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'system', content: systemPrompt }],
+        response_format: { type: 'json_object' }
+      });
+      const parsed = JSON.parse(openAiRes.choices[0].message.content || '{}');
+      question_prompt = parsed.question_prompt;
+      structured_answer = parsed.structured_answer;
+    }
+
+    if (question_prompt && structured_answer) {
+      await teableDB.createRecord(process.env.TEABLE_FAQS_TABLE_ID || '', {
+        Agent_ID: [agent_record_id],
+        Question_Prompt: question_prompt,
+        Structured_Answer: structured_answer
+      });
+      console.log(`[Automation] Saved FAQ to Teable for Agent ${agent_record_id}`);
+    }
+
+    // Ping Indexing APIs
+    const [googleRes, bingRes] = await Promise.all([
+      fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: profile_url, type: 'URL_UPDATED' })
+      }).then(r => r.status).catch(() => 500),
+      fetch('https://ssl.bing.com/webmaster/api.svc/json/SubmitUrl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteUrl: root_domain, url: profile_url })
+      }).then(r => r.status).catch(() => 500)
+    ]);
+    
+    console.log(`[Automation] Indexing ping completed. Google: ${googleRes}, Bing: ${bingRes}`);
+
+  } catch (automationErr: any) {
+    console.error('[Automation Background Error]', automationErr.message);
+  }
+});
 
 // ------------------------------------------------------------------------------
 // Vite Asset Handler Integration

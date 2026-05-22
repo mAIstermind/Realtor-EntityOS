@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-
+import BillingTab from './BillingTab';
 interface Review {
   Client_Name: string;
   Optimized_Quote: string;
@@ -649,57 +649,9 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
         </header>
 
         {activeTab === 'billing' && (
-          <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
-             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold mb-4">Subscription Settings</h2>
-                
-                {paymentStatus === 'failed' ? (
-                  <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center justify-between mb-8">
-                    <div>
-                      <h3 className="font-bold text-red-700 dark:text-red-400">Payment Failed</h3>
-                      <p className="text-sm text-red-600 dark:text-red-300">Your last payment of $99/mo failed. EntityOS features are currently paused.</p>
-                    </div>
-                    <button 
-                      onClick={() => simulateWebhook('succeeded')}
-                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-xl shadow-md transition-colors flex items-center gap-2"
-                    >
-                      <span className="material-symbols-outlined">credit_score</span>
-                      Pay Invoice & Unlock
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center justify-between mb-8">
-                    <div>
-                      <h3 className="font-bold text-green-700 dark:text-green-400">Subscription Active</h3>
-                      <p className="text-sm text-green-600 dark:text-green-300">Your next billing date is June 1st ($99/mo).</p>
-                    </div>
-                    <button className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-xl shadow-md transition-colors flex items-center gap-2">
-                      <span className="material-symbols-outlined">settings</span>
-                      Manage in Stripe Portal
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-8">
-                  <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Developer Webhook Simulation Panel</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Simulate Stripe webhook HTTP posts sent directly to the server to verify the automated profile firewall.</p>
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={() => simulateWebhook('failed')}
-                      className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 py-2.5 px-5 rounded-xl text-xs font-bold transition-colors"
-                    >
-                      Trigger Simulation: invoice.payment_failed
-                    </button>
-                    <button 
-                      onClick={() => simulateWebhook('succeeded')}
-                      className="bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-500 py-2.5 px-5 rounded-xl text-xs font-bold transition-colors"
-                    >
-                      Trigger Simulation: invoice.payment_succeeded
-                    </button>
-                  </div>
-                </div>
-              </div>
-           </div>
+          <div className="p-6 md:p-8 max-w-4xl mx-auto w-full">
+             <BillingTab agentId="cus_MikeBerry123" />
+          </div>
          )}
 
          {/* EMBEDDABLE WIDGETS AND HTML CODE SNIPPETS TAB VIEW */}
