@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import fs from "node:fs";
 import Stripe from "stripe";
 import OpenAI from "openai";
-import { teableDB } from "./server/db/teable.ts";
+import { teableDB } from "./server/db/teable.js";
 
 dotenv.config();
 
