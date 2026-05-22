@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "node:fs";
@@ -1495,6 +1494,8 @@ async function startServer() {
   if (process.env.VERCEL) {
     return;
   }
+
+  const { createServer: createViteServer } = await import("vite");
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
