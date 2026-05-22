@@ -826,6 +826,45 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
            </motion.section>
            )}
 
+           {/* OpenClaw Simulation Engine */}
+           {activeTab === 'dashboard' && (
+             <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 p-6 md:p-8 rounded-2xl shadow-sm relative overflow-hidden mb-6">
+               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500"></div>
+               <div className="flex items-center justify-between">
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Simulate OpenClaw Background Trigger</h3>
+                   <p className="text-xs text-gray-600 dark:text-gray-400">Trigger the webhook to simulate OpenClaw generating press arrays and writing them to Teable.</p>
+                 </div>
+                 <button 
+                   onClick={async () => {
+                     try {
+                       showToast("Dispatching OpenClaw Webhook...");
+                       const res = await fetch('/api/automation/dispatch', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                           agent_record_id: "agent_123",
+                           knowledge_context: "Generate press release matrix."
+                         })
+                       });
+                       if(res.ok) {
+                         showToast("Success! AI processed and synced to Teable.");
+                       } else {
+                         showToast("Trigger failed. Check backend logs.");
+                       }
+                     } catch(e) {
+                       showToast("Error triggering webhook.");
+                     }
+                   }}
+                   className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2 shrink-0 ml-4"
+                 >
+                   <span className="material-symbols-outlined text-[18px]">bolt</span>
+                   Fire Webhook
+                 </button>
+               </div>
+             </div>
+           )}
+
            {/* On-Demand Insights Engine */}
            {activeTab === 'dashboard' && (
              <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 p-6 md:p-8 rounded-2xl shadow-sm relative overflow-hidden">
