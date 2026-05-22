@@ -4,6 +4,9 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "node:fs";
+import Stripe from "stripe";
+import OpenAI from "openai";
+import { teableDB } from "./server/db/teable";
 
 dotenv.config();
 
@@ -837,8 +840,6 @@ app.post("/api/engine/index-submit", async (req, res) => {
 // ------------------------------------------------------------------------------
 // Interactive Stripe Webhook endpoint
 // ------------------------------------------------------------------------------
-import Stripe from 'stripe';
-import { teableDB } from './server/db/teable';
 
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2026-01-28' as any, // Typed correctly if using matching Stripe types
@@ -1406,7 +1407,7 @@ Follow these rules strictly:
 // ------------------------------------------------------------------------------
 // Native Automation Dispatcher (OpenClaw -> Backend)
 // ------------------------------------------------------------------------------
-import OpenAI from 'openai';
+
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
 
 const dispatchRateLimits = new Map<string, number>();
