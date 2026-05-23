@@ -338,6 +338,28 @@ async function getAgentById(id: string): Promise<AgentProfile | null> {
   return localAgent || null;
 }
 
+function getLocalAgentId(id: string): string {
+  if (id === 'reccdfQr5L46QVLiKdk') return 'agent_123';
+  if (id === 'recwhzWPWTQHswSKohV') return 'agent_456';
+  return id;
+}
+
+function matchesTeableAgent(fieldValue: any, targetId: string): boolean {
+  if (!fieldValue) return false;
+  if (typeof fieldValue === 'string') return fieldValue === targetId;
+  if (Array.isArray(fieldValue)) {
+    return fieldValue.some(val => {
+      if (typeof val === 'string') return val === targetId;
+      if (val && typeof val === 'object') return val.id === targetId;
+      return false;
+    });
+  }
+  if (typeof fieldValue === 'object') {
+    return fieldValue.id === targetId;
+  }
+  return false;
+}
+
 async function getVerifiedReviews(agentId: string): Promise<Review[]> {
   try {
     const url = `${TEABLE_API_URL}/table/${TEABLE_VERIFIED_REVIEWS_TABLE_ID}/record`;
@@ -350,8 +372,7 @@ async function getVerifiedReviews(agentId: string): Promise<Review[]> {
         // Filter in-memory
         const filtered = data.records.filter((r: any) => {
           const aid = r.fields.Agent_ID;
-          if (Array.isArray(aid)) return aid.includes(agentId);
-          return aid === agentId;
+          return matchesTeableAgent(aid, agentId);
         });
         return filtered.map((r: any) => ({
           id: r.id,
@@ -366,7 +387,8 @@ async function getVerifiedReviews(agentId: string): Promise<Review[]> {
     console.warn(`[Teable API] Reviews fallback used. Error: ${e.message}`);
   }
   
-  return mockReviews.filter(r => r.Agent_ID === agentId);
+  const localId = getLocalAgentId(agentId);
+  return mockReviews.filter(r => r.Agent_ID === localId || r.Agent_ID === agentId);
 }
 
 async function getFAQs(agentId: string): Promise<FAQ[]> {
@@ -381,8 +403,7 @@ async function getFAQs(agentId: string): Promise<FAQ[]> {
         // Filter in-memory
         const filtered = data.records.filter((r: any) => {
           const aid = r.fields.Agent_ID;
-          if (Array.isArray(aid)) return aid.includes(agentId);
-          return aid === agentId;
+          return matchesTeableAgent(aid, agentId);
         });
         return filtered.map((r: any) => ({
           id: r.id,
@@ -396,7 +417,8 @@ async function getFAQs(agentId: string): Promise<FAQ[]> {
     console.warn(`[Teable API] FAQs fallback used. Error: ${e.message}`);
   }
 
-  return mockFAQs.filter(f => f.Agent_ID === agentId);
+  const localId = getLocalAgentId(agentId);
+  return mockFAQs.filter(f => f.Agent_ID === localId || f.Agent_ID === agentId);
 }
 
 // ------------------------------------------------------------------------------
