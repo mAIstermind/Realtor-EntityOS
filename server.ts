@@ -982,7 +982,6 @@ app.post("/api/engine/index-submit", express.json(), async (req, res) => {
 // ------------------------------------------------------------------------------
 
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
-  apiVersion: '2026-01-28' as any,
   stripeAccount: 'acct_1SH58uFFwQ7QWJU8'
 });
 
