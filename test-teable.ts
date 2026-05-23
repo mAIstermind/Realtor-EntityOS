@@ -1,21 +1,17 @@
-import fetch from 'node-fetch';
+import { teableDB } from './server/db/teable.js';
 
-const token = 'teable_accXXZrNentZbczYXBq_jH3AWZb2HYSJVhCZutsNu9FV2cAyDX6rn17iM9tuBZk=';
-const baseUrl = 'https://app.teable.io/api';
-const baseId = 'bsexlZrrejsIgF7SoK4';
-const profilesTableId = 'tblWclyP1kzKFMTJaVv';
+async function test() {
+  const tableId = process.env.TEABLE_AGENT_PROFILES_TABLE_ID || 'tblWclyP1kzKFMTJaVv';
+  console.log("Testing string filter:");
+  const res1 = await teableDB.getRecords(tableId, { filter: `Stripe_Customer_ID='cus_MikeBerry123'` });
+  console.log("Res1 Error:", res1?.message || "Success");
 
-async function examineRawSchema() {
-  try {
-    console.log('Fetching Agent_Profiles raw schema...');
-    const schemaRes = await fetch(`${baseUrl}/base/${baseId}/table/${profilesTableId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const schema = await schemaRes.json() as any;
-    console.log('Raw Schema Response:', JSON.stringify(schema, null, 2));
-  } catch (err) {
-    console.error('Error:', err);
-  }
+  console.log("Testing object filter with fieldName:");
+  const res2 = await teableDB.getRecords(tableId, { 
+    filter: {
+      filterSet: [{ fieldName: 'Stripe_Customer_ID', operator: 'is', value: 'cus_MikeBerry123' }]
+    }
+  });
+  console.log("Res2 Error:", res2?.message || "Success");
 }
-
-examineRawSchema();
+test();

@@ -56,7 +56,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncComplete, setSyncComplete] = useState(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('profile');
   const [score, setScore] = useState(94);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [lastSync, setLastSync] = useState('Synced 4 mins ago');
@@ -559,19 +559,19 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
           <div className="px-3 py-2 text-xs font-label-caps text-gray-500 uppercase font-bold tracking-wider mb-2">Main Menu</div>
           
           <button 
-            onClick={() => setActiveTab('dashboard')} 
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
-          >
-            <span className="material-symbols-outlined">dashboard</span>
-            Dashboard
-          </button>
-          
-          <button 
             onClick={() => setActiveTab('profile')} 
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
           >
             <span className="material-symbols-outlined">person</span>
             AI Entity Profile
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('dashboard')} 
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+          >
+            <span className="material-symbols-outlined">dashboard</span>
+            Dashboard
           </button>
 
           <button 
@@ -825,6 +825,62 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
              </div>
            </motion.section>
            )}
+
+            {/* Onboarding Deployment Checklist */}
+            {activeTab === 'dashboard' && (
+              <div className="bg-gradient-to-r from-primary/10 via-tertiary/10 to-primary/5 dark:from-primary/20 dark:via-tertiary/10 dark:to-primary/10 border border-primary/20 p-6 md:p-8 rounded-2xl shadow-sm relative overflow-hidden mb-6">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-tertiary"></div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined">map</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">EntityOS AEO Deployment Checklist</h3>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+                      Follow these steps in order to ensure your AI presence is fully optimized, verified, and submitted to search engine crawler databases.
+                    </p>
+                    <div className="grid md:grid-cols-4 gap-4">
+                      <div className="bg-surface/60 dark:bg-black/35 border border-outline-variant/20 p-4 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">1</span>
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white">Configure Profile</h4>
+                        </div>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                          Fill in your micro-niche, local focus, and client reviews on the <strong>AI Entity Profile</strong> tab and click save.
+                        </p>
+                      </div>
+                      <div className="bg-surface/60 dark:bg-black/35 border border-outline-variant/20 p-4 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">2</span>
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white">Sync Crawlers</h4>
+                        </div>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                          Click the <strong>Sync to AI Crawlers</strong> button in the top right to compile your final schemas and write them to Teable.
+                        </p>
+                      </div>
+                      <div className="bg-surface/60 dark:bg-black/35 border border-outline-variant/20 p-4 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">3</span>
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white">Analyze Trends</h4>
+                        </div>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                          Use the <strong>Query Analyst</strong> tool below to compute emerging generative trends matching your micro-niche.
+                        </p>
+                      </div>
+                      <div className="bg-surface/60 dark:bg-black/35 border border-outline-variant/20 p-4 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">4</span>
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white">Simulate Automation</h4>
+                        </div>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                          Trigger the <strong>OpenClaw Simulation</strong> webhook below to verify the background Stripe-to-AI automation loop.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
            {/* OpenClaw Simulation Engine */}
            {activeTab === 'dashboard' && (
@@ -1386,20 +1442,18 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                      </div>
                    </div>
                    
-                   <div>
-                     <div className="flex items-center justify-between mb-4 mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
-                       <div>
-                         <h4 className="font-bold text-gray-900 dark:text-white mb-1">Self-Hosting (llms.txt)</h4>
-                         <p className="text-xs text-gray-800 dark:text-gray-300">Need to host the AI markup on your own domain?</p>
-                       </div>
-                       <button 
-                         onClick={() => setIsExportModalOpen(true)}
-                         className="bg-primary/10 text-primary hover:bg-primary/20 font-bold py-2 px-4 rounded-xl transition-all text-xs flex items-center gap-2"
-                       >
-                         <span className="material-symbols-outlined text-[16px]">download</span>
-                         Export File
-                       </button>
+                   <div className="flex items-center justify-between mb-4 mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                     <div>
+                       <h4 className="font-bold text-gray-900 dark:text-white mb-1">Self-Hosting (llms.txt)</h4>
+                       <p className="text-xs text-gray-800 dark:text-gray-300">Need to host the AI markup on your own domain?</p>
                      </div>
+                     <button 
+                       onClick={() => setIsExportModalOpen(true)}
+                       className="bg-primary/10 text-primary hover:bg-primary/20 font-bold py-2 px-4 rounded-xl transition-all text-xs flex items-center gap-2"
+                     >
+                       <span className="material-symbols-outlined text-[16px]">download</span>
+                       Export File
+                     </button>
                    </div>
                  </div>
 
@@ -1408,7 +1462,11 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                    <button 
                      onClick={async () => {
                        const btn = document.getElementById('save-btn');
-                       if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> Optimizing reviews & compiling FAQs...';
+                       const originalHtml = btn ? btn.innerHTML : '';
+                       if (btn) {
+                         btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> Optimizing reviews & compiling FAQs...';
+                         btn.setAttribute('disabled', 'true');
+                       }
 
                        try {
                          // Send safe data layers and relational updates to backend Express write layer
@@ -1423,7 +1481,7 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                          });
 
                          const data = await res.json();
-                         if (data.success) {
+                         if (res.ok && data.success) {
                            // Instantly update state with the AI optimized and fluff-stripped reviews and compiled FAQs!
                            if (data.reviews) setReviews(data.reviews);
                            if (data.faqs) setFaqs(data.faqs);
@@ -1443,12 +1501,37 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Configuration';
                                btn.classList.remove('bg-green-600');
                                btn.classList.add('bg-gray-900', 'dark:bg-white');
+                               btn.removeAttribute('disabled');
+                             }, 2500);
+                           }
+                         } else {
+                           showToast(data.error || "Failed to optimize and save profile.");
+                           if (btn) {
+                             btn.innerHTML = 'Save Failed';
+                             btn.classList.add('bg-red-600');
+                             btn.classList.remove('bg-gray-900', 'dark:bg-white');
+                             setTimeout(() => {
+                               btn.innerHTML = originalHtml || '<span class="material-symbols-outlined text-[18px]">save</span> Save Configuration';
+                               btn.classList.remove('bg-red-600');
+                               btn.classList.add('bg-gray-900', 'dark:bg-white');
+                               btn.removeAttribute('disabled');
                              }, 2500);
                            }
                          }
                        } catch (err) {
                          console.error('Failed to save', err);
-                         if (btn) btn.innerHTML = 'Save Failed';
+                         showToast("Network error. Could not connect to backend server.");
+                         if (btn) {
+                           btn.innerHTML = 'Save Failed';
+                           btn.classList.add('bg-red-600');
+                           btn.classList.remove('bg-gray-900', 'dark:bg-white');
+                           setTimeout(() => {
+                             btn.innerHTML = originalHtml || '<span class="material-symbols-outlined text-[18px]">save</span> Save Configuration';
+                             btn.classList.remove('bg-red-600');
+                             btn.classList.add('bg-gray-900', 'dark:bg-white');
+                             btn.removeAttribute('disabled');
+                           }, 2500);
+                         }
                        }
                      }}
                      id="save-btn"
@@ -1679,13 +1762,13 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
 
       {/* Mobile Nav Overlay */}
       <nav className="fixed bottom-0 left-0 w-full z-50 bg-surface dark:bg-surface-container shadow-[0_-4px_20px_-2px_rgba(0,0,0,0.05)] lg:hidden py-3 px-6 flex justify-around border-t border-outline-variant/30">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-500'}`}>
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="text-[10px] font-bold mt-1">DASHBOARD</span>
-        </button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-primary' : 'text-gray-500'}`}>
           <span className="material-symbols-outlined">person</span>
           <span className="text-[10px] font-bold mt-1">PROFILE</span>
+        </button>
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-500'}`}>
+          <span className="material-symbols-outlined">dashboard</span>
+          <span className="text-[10px] font-bold mt-1">DASHBOARD</span>
         </button>
         <button onClick={() => setActiveTab('widgets')} className={`flex flex-col items-center ${activeTab === 'widgets' ? 'text-primary' : 'text-gray-500'}`}>
           <span className="material-symbols-outlined">code</span>

@@ -57,14 +57,20 @@ export class TeableClient {
    * Update a specific record with partial fields.
    */
   public async updateRecord(tableId: string, recordId: string, fields: Record<string, any>) {
-    return this.client.patch(`/table/${tableId}/record/${recordId}`, { fields });
+    return this.client.patch(`/table/${tableId}/record/${recordId}`, {
+      typecast: true,
+      record: { fields }
+    });
   }
 
   /**
    * Create a new record in a specified table.
    */
   public async createRecord(tableId: string, fields: Record<string, any>) {
-    return this.client.post(`/table/${tableId}/record`, { fields });
+    return this.client.post(`/table/${tableId}/record`, {
+      typecast: true,
+      records: [{ fields }]
+    });
   }
 }
 
