@@ -12,6 +12,22 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Domain routing interceptor
+app.use((req, res, next) => {
+  const host = req.hostname || req.headers.host || '';
+  
+  if (host.includes('reviews.realai.casa')) {
+    if (req.path.startsWith('/dashboard') || req.path === '/') {
+      return res.redirect(301, 'https://aeo.maistermind.com/dashboard');
+    }
+  } else if (host.includes('aeo.maistermind.com') || host.includes('aeo.realai.casa')) {
+    if (req.path.startsWith('/profiles')) {
+      return res.redirect(301, 'https://reviews.realai.casa' + req.url);
+    }
+  }
+  next();
+});
+
 // Initialize Gemini with fallback
 let ai: any;
 try {
@@ -898,12 +914,37 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
 
       if (searchRes && searchRes.data && searchRes.data.records && searchRes.data.records.length > 0) {
         const recordId = searchRes.data.records[0].id;
+        const agentData = searchRes.data.records[0].fields;
         
         await teableDB.updateRecord(process.env.TEABLE_AGENT_PROFILES_TABLE_ID || '', recordId, {
           Subscription_Status: newStatus,
           Is_Publicly_Accessible: newStatus === 'active'
         });
         console.log(`[Teable DB] Agent record ${recordId} updated to status: ${newStatus}`);
+        
+        // AI Generator Hook
+        if (newStatus === 'active') {
+          const agentName = agentData.Agent_Name || 'Verified Agent';
+          const microNiche = agentData.Micro_Niche || 'Real Estate Professional';
+          const geoFocus = agentData.Geo_Focus || 'Local Real Estate Market';
+          const localKnowledge = 'Active and verified professional ready for AEO crawler synthesis.';
+          
+          console.log(`[AI Generator Hook] Auto-compiling FAQ matrix for ${agentName} upon active subscription...`);
+          try {
+            const generatedFaqs = await compileFaqsBackground(agentName, microNiche, geoFocus, localKnowledge);
+            
+            for (const faq of generatedFaqs) {
+              await teableDB.createRecord(process.env.TEABLE_FAQS_TABLE_ID || '', {
+                Agent_ID: [recordId],
+                Question_Prompt: faq.Question_Prompt,
+                Structured_Answer: faq.Structured_Answer
+              });
+            }
+            console.log(`[AI Generator] Successfully compiled & synced FAQ matrix to Teable.`);
+          } catch (aiErr: any) {
+            console.error(`[AI Generator Error] Failed to generate FAQs on webhook: ${aiErr.message}`);
+          }
+        }
       }
     }
   } catch (dbErr: any) {
