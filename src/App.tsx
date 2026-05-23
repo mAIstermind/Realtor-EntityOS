@@ -157,6 +157,10 @@ export default function App() {
     setSlug(resolvedSlug);
     setAgentId(resolvedAgentId);
 
+    const isBillingSuccess = window.location.search.includes('billing=success');
+    let pollCount = 0;
+    const maxPolls = 10;
+
     // Fetch Dashboard data dynamically
     const loadDashboard = async () => {
       try {
@@ -167,12 +171,32 @@ export default function App() {
           const backendStatus = data.data.fields.Subscription_Status;
           if (backendStatus === 'active') {
             setPaymentStatus('active');
+            if (window.location.search.includes('billing=success')) {
+              // Clean search params from URL
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+              showToast("Premium protection active! Crawler matrices initialized.");
+            }
           } else {
-            setPaymentStatus('failed');
+            if (isBillingSuccess && pollCount < maxPolls) {
+              // Keep active state while polling to avoid kicking them out
+              setPaymentStatus('active');
+              showToast(`Syncing subscription with Stripe... (attempt ${pollCount + 1}/${maxPolls})`);
+              pollCount++;
+              setTimeout(loadDashboard, 3000);
+            } else {
+              setPaymentStatus('failed');
+              if (isBillingSuccess) {
+                showToast("Subscription sync timed out. Please check Stripe billing.");
+              }
+            }
           }
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
+        if (!isBillingSuccess) {
+          setPaymentStatus('failed');
+        }
       }
     };
     loadDashboard();
