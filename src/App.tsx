@@ -57,10 +57,27 @@ export default function App() {
   const [syncComplete, setSyncComplete] = useState(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('profile');
-  const [score, setScore] = useState(94);
+  const [score, setScore] = useState(80);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [lastSync, setLastSync] = useState('Synced 4 mins ago');
-  const [interactionsThisMonth, setInteractionsThisMonth] = useState(47);
+  const [lastSync, setLastSync] = useState('Not synced yet');
+  const [interactionsThisMonth, setInteractionsThisMonth] = useState(0);
+
+  // Dynamically calculate and update optimization score in real-time
+  useEffect(() => {
+    let base = 80;
+    if (agentName) base += 2;
+    if (microNiche) base += 2;
+    if (geoFocus) base += 2;
+    if (bookingLink) base += 2;
+    if (domain) base += 2;
+    if (languages) base += 2;
+    if (zillowUrl) base += 3;
+    if (dreLicense) base += 1;
+    if (reviews && reviews.length > 0) base += 2;
+    if (faqs && faqs.length > 0) base += 2;
+    if (syncComplete) base = 100; // Indexing sync complete overrides to 100%
+    setScore(Math.min(100, base));
+  }, [agentName, microNiche, geoFocus, bookingLink, domain, languages, zillowUrl, dreLicense, reviews, faqs, syncComplete]);
 
   // Relational Reviews and FAQs manager state (Automatically synchronized)
   const [reviews, setReviews] = useState<Review[]>([
@@ -583,6 +600,14 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
           </button>
 
           <button 
+            onClick={() => setActiveTab('manual')} 
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'manual' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+          >
+            <span className="material-symbols-outlined">menu_book</span>
+            User Manual (AEO Guide)
+          </button>
+
+          <button 
             onClick={() => setActiveTab('billing')} 
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'billing' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
           >
@@ -613,7 +638,7 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
           <div className="flex items-center gap-4">
             <div className="lg:hidden w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary font-bold">E</div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
-              {activeTab === 'profile' ? 'AI Entity Profile Settings' : activeTab === 'widgets' ? 'Embeddable Widgets & AEO Snippets' : activeTab}
+              {activeTab === 'profile' ? 'AI Entity Profile Settings' : activeTab === 'widgets' ? 'Embeddable Widgets & AEO Snippets' : activeTab === 'manual' ? 'AEO & GEO Engineering Manual' : activeTab}
             </h2>
           </div>
           
@@ -775,6 +800,138 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
              </div>
            </div>
          )}
+
+          {activeTab === 'manual' && (
+            <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+              {/* Manual Banner */}
+              <div className="bg-gradient-to-r from-primary/10 via-tertiary/10 to-primary/5 dark:from-primary/20 dark:via-tertiary/10 dark:to-primary/10 border border-primary/20 p-6 md:p-8 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-tertiary"></div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined">menu_book</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">EntityOS AEO & GEO Engineering Manual</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                      A comprehensive reference explaining the key mechanics of Search Engine Optimization (SEO), Answer Engine Optimization (AEO), and Generative Engine Optimization (GEO) in the era of AI-driven search models.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cognitive Framework Overview */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 p-6 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="material-symbols-outlined text-primary text-3xl">search</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">1. Traditional SEO</h3>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    <strong>Search Engine Optimization</strong> focuses on indexing web pages based on raw keywords, domain authority, page load speed, and link hierarchies. Traditional search crawlers match queries directly with index files to present ranked text links.
+                  </p>
+                </div>
+
+                <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 p-6 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="material-symbols-outlined text-primary text-3xl">chat</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">2. Modern AEO</h3>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    <strong>Answer Engine Optimization</strong> tailors information for conversational engines (e.g. Gemini, ChatGPT, Perplexity). AEO targets zero-click answers by organizing facts in an "Answer-First" structure, making it easy for bots to retrieve structured claims.
+                  </p>
+                </div>
+
+                <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 p-6 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="material-symbols-outlined text-primary text-3xl">hub</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">3. Next-Gen GEO</h3>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    <strong>Generative Engine Optimization</strong> guides how LLMs synthesize multiple domain sources into synthesized paragraphs. GEO optimizes structural variables (like co-citation networks, entity attributes, and schemas) to be prioritized as cited references.
+                  </p>
+                </div>
+              </div>
+
+              {/* Detailed Area Guides */}
+              <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b border-outline-variant/30 pb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">analytics</span>
+                  Why Each Configuration Section Matters
+                </h3>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div className="border-l-4 border-primary pl-4 py-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm">AI Entity Profile (Settings & Inputs)</h4>
+                      <p className="text-[11px] text-gray-500">Core parameters defining your business namespace.</p>
+                    </div>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-3 leading-relaxed list-disc pl-5">
+                      <li>
+                        <strong>Micro-Niche / Specialization:</strong> AI models parse semantic fields. Specifying a granular focus rather than "Real Estate Agent" helps models assign you as the primary authority in a distinct domain.
+                      </li>
+                      <li>
+                        <strong>Geographic Focus:</strong> Generative search queries are heavily location-dependent. Clean geographical identifiers (e.g. city, state, country) feed the spatial knowledge graphs of LLM agents.
+                      </li>
+                      <li>
+                        <strong>Languages:</strong> Multi-lingual tokens enable cross-border query synthesis, allowing AI agents to translate and serve your profile to international searchers.
+                      </li>
+                      <li>
+                        <strong>Booking / CTA Links:</strong> AI engines prioritize entities that provide actionable, direct conversion paths (like booking calendars or messaging links) over plain informational content.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="border-l-4 border-primary pl-4 py-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm">Insider Local Knowledge (Q&A Accordion)</h4>
+                      <p className="text-[11px] text-gray-500">Dense knowledge nuggets parsed directly by LLM crawlers.</p>
+                    </div>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-3 leading-relaxed list-disc pl-5">
+                      <li>
+                        <strong>Answer-First Format:</strong> The Q&A structure mirrors conversational query-response loops. Placing a direct, authoritative answer at the beginning of each block satisfies zero-shot extraction algorithms.
+                      </li>
+                      <li>
+                        <strong>Local & Economic Facts:</strong> Crawlers look for numbers (ROI percentages, tax regulations, trust Fideicomiso rules) to verify page authenticity. Providing high-density facts boosts your trust rank.
+                      </li>
+                      <li>
+                        <strong>Self-Hosted llms.txt:</strong> External AI crawlers look for the standardized `/llms.txt` file at the root of a domain to quickly ingest your business profile without scraping raw HTML.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="border-l-4 border-primary pl-4 py-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm">Verified Testimonials (AI Citation Score)</h4>
+                      <p className="text-[11px] text-gray-500">Social proof optimized for semantic validation.</p>
+                    </div>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-3 leading-relaxed list-disc pl-5">
+                      <li>
+                        <strong>Fluff-Stripping:</strong> Standard reviews are full of generic marketing adjectives ("friendly", "amazing", "great service"). AEO models ignore these. Stripping fluff leaves only verifiable claims.
+                      </li>
+                      <li>
+                        <strong>Semantic Citations:</strong> Incorporating precise professional terms (e.g. "managed Fideicomiso contract", "secured 10.2% ROI", "verified AMPI registration") directly within quotes validates your entity expertise.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="border-l-4 border-primary pl-4 py-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm">Entity Authority Tokens (Verification)</h4>
+                      <p className="text-[11px] text-gray-500">Cross-referencing trust signals across the web.</p>
+                    </div>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-3 leading-relaxed list-disc pl-5">
+                      <li>
+                        <strong>DRE License & credentials:</strong> Linking your profile to real-world licensing registries (like DRE or AMPI) allows search crawlers to cross-reference and verify you as an authentic, licensed entity.
+                      </li>
+                      <li>
+                        <strong>Zillow Node Connection:</strong> Connecting major directories builds a co-citation network. This establishes a high domain trust score, prompting LLMs to favor your profile in recommendations.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
          {(activeTab === 'dashboard' || activeTab === 'profile') && (
          <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -1773,6 +1930,10 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
         <button onClick={() => setActiveTab('widgets')} className={`flex flex-col items-center ${activeTab === 'widgets' ? 'text-primary' : 'text-gray-500'}`}>
           <span className="material-symbols-outlined">code</span>
           <span className="text-[10px] font-bold mt-1">WIDGETS</span>
+        </button>
+        <button onClick={() => setActiveTab('manual')} className={`flex flex-col items-center ${activeTab === 'manual' ? 'text-primary' : 'text-gray-500'}`}>
+          <span className="material-symbols-outlined">menu_book</span>
+          <span className="text-[10px] font-bold mt-1">MANUAL</span>
         </button>
         <button onClick={() => setActiveTab('billing')} className={`flex flex-col items-center ${activeTab === 'billing' ? 'text-primary' : 'text-gray-500'}`}>
           <span className="material-symbols-outlined">credit_card</span>

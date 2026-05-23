@@ -111,7 +111,7 @@ const mockAgents: AgentProfile[] = [
     Subscription_Status: "active",
     Is_Publicly_Accessible: true,
     Stripe_Customer_ID: "cus_MikeBerry123",
-    Modal_Click_Count: 47,
+    Modal_Click_Count: 0,
     Last_Reset_Month: "2026-05",
     Latitude: "20.6296",
     Longitude: "-87.0739",
@@ -142,7 +142,7 @@ const mockAgents: AgentProfile[] = [
     Subscription_Status: "active",
     Is_Publicly_Accessible: true,
     Stripe_Customer_ID: "cus_SarahJenkins123",
-    Modal_Click_Count: 32,
+    Modal_Click_Count: 0,
     Last_Reset_Month: "2026-05",
     Latitude: "34.0869",
     Longitude: "-118.2702",
@@ -274,7 +274,7 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
             Booking_Link: rec.fields.Booking_Link || baseMock.Booking_Link,
             Subscription_Status: rec.fields.Subscription_Status || baseMock.Subscription_Status,
             Is_Publicly_Accessible: rec.fields.Is_Publicly_Accessible !== undefined ? rec.fields.Is_Publicly_Accessible : baseMock.Is_Publicly_Accessible,
-            Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : baseMock.Modal_Click_Count,
+            Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : 0,
             Last_Reset_Month: rec.fields.Last_Reset_Month || baseMock.Last_Reset_Month,
           };
         }
@@ -326,7 +326,7 @@ async function getAgentById(id: string): Promise<AgentProfile | null> {
         Booking_Link: rec.fields.Booking_Link || baseMock.Booking_Link,
         Subscription_Status: rec.fields.Subscription_Status || baseMock.Subscription_Status,
         Is_Publicly_Accessible: rec.fields.Is_Publicly_Accessible !== undefined ? rec.fields.Is_Publicly_Accessible : baseMock.Is_Publicly_Accessible,
-        Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : baseMock.Modal_Click_Count,
+        Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : 0,
         Last_Reset_Month: rec.fields.Last_Reset_Month || baseMock.Last_Reset_Month,
       };
     }
@@ -1026,17 +1026,69 @@ app.post("/api/webhooks/stripe", express.raw({ type: 'application/json' }), asyn
 });
 
 // ------------------------------------------------------------------------------
+// Helper: Get or create Stripe price dynamically to prevent placeholder errors
+async function getOrCreatePrice(planType: string): Promise<string> {
+  const envKey = planType === 'annual' ? 'STRIPE_PRICE_ANNUAL' : (planType === 'quarterly' ? 'STRIPE_PRICE_QUARTERLY' : 'STRIPE_PRICE_MONTHLY');
+  const envVal = process.env[envKey];
+  if (envVal && envVal.startsWith('price_') && !envVal.includes('...')) {
+    return envVal;
+  }
+
+  const amount = planType === 'annual' ? 89900 : (planType === 'quarterly' ? 24900 : 9900);
+  const interval = planType === 'annual' ? 'year' : 'month';
+  const interval_count = planType === 'quarterly' ? 3 : 1;
+  const name = `EntityOS Premium Protection - ${planType.charAt(0).toUpperCase() + planType.slice(1)}`;
+
+  // 1. Try to find existing product
+  let product;
+  try {
+    const products = await stripeClient.products.list({ limit: 100 });
+    product = products.data.find(p => p.name === name && p.active);
+    if (!product) {
+      product = await stripeClient.products.create({
+        name,
+        description: `EntityOS Premium Protection billing plan: ${planType}`
+      });
+    }
+  } catch (err: any) {
+    console.error(`[Stripe Product Helper] Product lookup/creation error: ${err.message}`);
+    throw err;
+  }
+
+  // 2. Try to find existing price
+  try {
+    const prices = await stripeClient.prices.list({ product: product.id, limit: 100, active: true });
+    let price = prices.data.find(p => 
+      p.unit_amount === amount && 
+      p.recurring?.interval === interval && 
+      p.recurring?.interval_count === interval_count
+    );
+    if (!price) {
+      price = await stripeClient.prices.create({
+        product: product.id,
+        unit_amount: amount,
+        currency: 'usd',
+        recurring: {
+          interval,
+          interval_count
+        }
+      });
+    }
+    return price.id;
+  } catch (err: any) {
+    console.error(`[Stripe Price Helper] Price lookup/creation error: ${err.message}`);
+    throw err;
+  }
+}
+
 // Create Subscription Intent Route
-// ------------------------------------------------------------------------------
 app.post('/api/billing/create-subscription-intent', express.json(), async (req, res) => {
   try {
     const { agentId, planType } = req.body;
     if (!agentId) return res.status(400).json({ error: 'Missing agentId' });
     
-    // Choose price based on planType
-    let priceId = process.env.STRIPE_PRICE_MONTHLY;
-    if (planType === 'quarterly') priceId = process.env.STRIPE_PRICE_QUARTERLY;
-    if (planType === 'annual') priceId = process.env.STRIPE_PRICE_ANNUAL;
+    // Choose price dynamically
+    const priceId = await getOrCreatePrice(planType);
 
     // Create a generic customer if not exist, or you would look it up from Teable
     const customer = await stripeClient.customers.create({
