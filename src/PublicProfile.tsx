@@ -466,6 +466,18 @@ export default function PublicProfile() {
                   </>
                 )}
               </button>
+              
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                <a 
+                  href={`/profiles/${agentData.Slug}/llms.txt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-on-surface-variant dark:text-white/40 hover:text-primary dark:hover:text-primary-fixed transition-colors flex items-center justify-center gap-1.5 font-medium"
+                >
+                  <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                  View LLM Crawler Context (llms.txt)
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>

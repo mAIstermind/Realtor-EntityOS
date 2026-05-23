@@ -10,12 +10,39 @@ export default function Auth({ type }: AuthProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate auth, push to dashboard
-    if (type !== 'forgot') {
-      navigate('/dashboard');
+    setError(null);
+    if (type === 'forgot') {
+      alert("Forgot password email sent!");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        localStorage.setItem('entityos_user', JSON.stringify({
+          agentId: data.agentId,
+          slug: data.slug,
+          email: email
+        }));
+        navigate('/dashboard');
+      } else {
+        setError(data.error || "Authentication failed.");
+      }
+    } catch (err) {
+      setError("Unable to connect to the authentication service.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -40,6 +67,12 @@ export default function Auth({ type }: AuthProps) {
           {type === 'register' && 'Start optimizing your AI crawler presence today.'}
           {type === 'forgot' && 'We\'ll send you instructions to reset your password.'}
         </p>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 text-xs font-semibold p-3.5 rounded-xl border border-red-100 mb-6 text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {type === 'register' && (
@@ -89,11 +122,16 @@ export default function Auth({ type }: AuthProps) {
 
           <button 
             type="submit" 
-            className="w-full bg-primary text-white font-bold text-sm py-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all mt-4"
+            disabled={isSubmitting}
+            className="w-full bg-primary text-white font-bold text-sm py-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all mt-4 disabled:opacity-50 disabled:cursor-wait"
           >
-            {type === 'login' && 'Log In to Dashboard'}
-            {type === 'register' && 'Create Account'}
-            {type === 'forgot' && 'Send Reset Link'}
+            {isSubmitting ? 'Authenticating...' : (
+              <>
+                {type === 'login' && 'Log In to Dashboard'}
+                {type === 'register' && 'Create Account'}
+                {type === 'forgot' && 'Send Reset Link'}
+              </>
+            )}
           </button>
         </form>
 

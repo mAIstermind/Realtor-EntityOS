@@ -270,12 +270,19 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
             Primary_Domain: rec.fields.Primary_Domain || baseMock.Primary_Domain,
             Micro_Niche: rec.fields.Micro_Niche || baseMock.Micro_Niche,
             Geo_Focus: rec.fields.Geo_Focus || baseMock.Geo_Focus,
-            Languages: rec.fields.Languages ? (typeof rec.fields.Languages === 'string' ? rec.fields.Languages.split(',') : rec.fields.Languages) : baseMock.Languages,
+            Languages: rec.fields.Languages ? (typeof rec.fields.Languages === 'string' ? rec.fields.Languages.split(',').map((s: string) => s.trim()) : rec.fields.Languages) : baseMock.Languages,
             Booking_Link: rec.fields.Booking_Link || baseMock.Booking_Link,
             Subscription_Status: rec.fields.Subscription_Status || baseMock.Subscription_Status,
             Is_Publicly_Accessible: rec.fields.Is_Publicly_Accessible !== undefined ? rec.fields.Is_Publicly_Accessible : baseMock.Is_Publicly_Accessible,
             Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : 0,
             Last_Reset_Month: rec.fields.Last_Reset_Month || baseMock.Last_Reset_Month,
+            Instagram_Link: rec.fields.Instagram_Link || baseMock.Instagram_Link,
+            Whatsapp_Link: rec.fields.Whatsapp_Link || baseMock.Whatsapp_Link,
+            Metrics: [
+              { label: "AI Visibility", value: "98%" },
+              { label: "List-to-Sale Ratio", value: rec.fields.List_To_Sale_Ratio || "97.4%" },
+              { label: "Investor ROI", value: rec.fields.Investor_Roi || "11.2%" }
+            ]
           };
         }
       }
@@ -322,12 +329,19 @@ async function getAgentById(id: string): Promise<AgentProfile | null> {
         Primary_Domain: rec.fields.Primary_Domain || baseMock.Primary_Domain,
         Micro_Niche: rec.fields.Micro_Niche || baseMock.Micro_Niche,
         Geo_Focus: rec.fields.Geo_Focus || baseMock.Geo_Focus,
-        Languages: rec.fields.Languages ? (typeof rec.fields.Languages === 'string' ? rec.fields.Languages.split(',') : rec.fields.Languages) : baseMock.Languages,
+        Languages: rec.fields.Languages ? (typeof rec.fields.Languages === 'string' ? rec.fields.Languages.split(',').map((s: string) => s.trim()) : rec.fields.Languages) : baseMock.Languages,
         Booking_Link: rec.fields.Booking_Link || baseMock.Booking_Link,
         Subscription_Status: rec.fields.Subscription_Status || baseMock.Subscription_Status,
         Is_Publicly_Accessible: rec.fields.Is_Publicly_Accessible !== undefined ? rec.fields.Is_Publicly_Accessible : baseMock.Is_Publicly_Accessible,
         Modal_Click_Count: rec.fields.Modal_Click_Count !== undefined ? Number(rec.fields.Modal_Click_Count) : 0,
         Last_Reset_Month: rec.fields.Last_Reset_Month || baseMock.Last_Reset_Month,
+        Instagram_Link: rec.fields.Instagram_Link || baseMock.Instagram_Link,
+        Whatsapp_Link: rec.fields.Whatsapp_Link || baseMock.Whatsapp_Link,
+        Metrics: [
+          { label: "AI Visibility", value: "98%" },
+          { label: "List-to-Sale Ratio", value: rec.fields.List_To_Sale_Ratio || "97.4%" },
+          { label: "Investor ROI", value: rec.fields.Investor_Roi || "11.2%" }
+        ]
       };
     }
   } catch (err: any) {
@@ -374,13 +388,23 @@ async function getVerifiedReviews(agentId: string): Promise<Review[]> {
           const aid = r.fields.Agent_ID;
           return matchesTeableAgent(aid, agentId);
         });
-        return filtered.map((r: any) => ({
-          id: r.id,
-          Agent_ID: agentId,
-          Client_Name: r.fields.Client_Name,
-          Optimized_Quote: r.fields.Optimized_Quote,
-          Date: r.fields.Date
-        }));
+
+        const seen = new Set<string>();
+        const uniqueReviews: Review[] = [];
+        for (const r of filtered) {
+          const quote = (r.fields.Optimized_Quote || "").trim();
+          if (quote && !seen.has(quote)) {
+            seen.add(quote);
+            uniqueReviews.push({
+              id: r.id,
+              Agent_ID: agentId,
+              Client_Name: r.fields.Client_Name,
+              Optimized_Quote: r.fields.Optimized_Quote,
+              Date: r.fields.Date
+            });
+          }
+        }
+        return uniqueReviews;
       }
     }
   } catch (e) {
@@ -388,7 +412,17 @@ async function getVerifiedReviews(agentId: string): Promise<Review[]> {
   }
   
   const localId = getLocalAgentId(agentId);
-  return mockReviews.filter(r => r.Agent_ID === localId || r.Agent_ID === agentId);
+  const localFiltered = mockReviews.filter(r => r.Agent_ID === localId || r.Agent_ID === agentId);
+  const seen = new Set<string>();
+  const uniqueReviews: Review[] = [];
+  for (const r of localFiltered) {
+    const quote = (r.Optimized_Quote || "").trim();
+    if (quote && !seen.has(quote)) {
+      seen.add(quote);
+      uniqueReviews.push(r);
+    }
+  }
+  return uniqueReviews;
 }
 
 async function getFAQs(agentId: string): Promise<FAQ[]> {
@@ -405,12 +439,23 @@ async function getFAQs(agentId: string): Promise<FAQ[]> {
           const aid = r.fields.Agent_ID;
           return matchesTeableAgent(aid, agentId);
         });
-        return filtered.map((r: any) => ({
-          id: r.id,
-          Agent_ID: agentId,
-          Question_Prompt: r.fields.Question_Prompt,
-          Structured_Answer: r.fields.Structured_Answer
-        }));
+        
+        // Deduplicate in-memory by Question_Prompt
+        const seen = new Set<string>();
+        const uniqueFaqs: FAQ[] = [];
+        for (const r of filtered) {
+          const q = (r.fields.Question_Prompt || "").trim();
+          if (q && !seen.has(q)) {
+            seen.add(q);
+            uniqueFaqs.push({
+              id: r.id,
+              Agent_ID: agentId,
+              Question_Prompt: r.fields.Question_Prompt,
+              Structured_Answer: r.fields.Structured_Answer
+            });
+          }
+        }
+        return uniqueFaqs;
       }
     }
   } catch (e) {
@@ -418,7 +463,17 @@ async function getFAQs(agentId: string): Promise<FAQ[]> {
   }
 
   const localId = getLocalAgentId(agentId);
-  return mockFAQs.filter(f => f.Agent_ID === localId || f.Agent_ID === agentId);
+  const localFiltered = mockFAQs.filter(f => f.Agent_ID === localId || f.Agent_ID === agentId);
+  const seen = new Set<string>();
+  const uniqueFaqs: FAQ[] = [];
+  for (const f of localFiltered) {
+    const q = (f.Question_Prompt || "").trim();
+    if (q && !seen.has(q)) {
+      seen.add(q);
+      uniqueFaqs.push(f);
+    }
+  }
+  return uniqueFaqs;
 }
 
 // ------------------------------------------------------------------------------
@@ -687,6 +742,7 @@ app.get("/profiles/:username", async (req, res, next) => {
         <meta property="og:title" content="${agent.Agent_Name} | ${agent.Micro_Niche}">
         <meta property="og:description" content="View verified testimonials and real estate analytics.">
         <meta property="og:image" content="${agent.Profile_Image}">
+        <link rel="alternate" type="text/plain" href="/profiles/${agent.Slug}/llms.txt" title="LLMs.txt version">
         <script type="application/ld+json">${JSON.stringify(jsonLdPayload)}</script>
       `;
 
@@ -728,6 +784,8 @@ app.get("/profiles/:username/llms.txt", async (req, res) => {
 - Linguistic Capabilities: ${agent.Languages.join(', ')}
 - Professional Identity: Real Estate Agent
 - Direct Contact: ${agent.Booking_Link}
+- Social Channel (Instagram): ${agent.Instagram_Link || 'None'}
+- Social Channel (WhatsApp): ${agent.Whatsapp_Link || 'None'}
 
 # Recent Activity
 - Active advisory on residential transactions and investment acquisitions in ${agent.Geo_Focus}.
@@ -1103,13 +1161,63 @@ app.post('/api/billing/create-subscription-intent', express.json(), async (req, 
       expand: ['latest_invoice.payment_intent'],
     });
 
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+    const invoice = subscription.latest_invoice as any;
+    const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
 
     res.json({ clientSecret: paymentIntent.client_secret });
   } catch (err: any) {
     console.error('[Stripe Intent Error]', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------------------------------------------
+// Authentication/Login API Endpoint
+// ------------------------------------------------------------------------------
+app.post("/api/auth/login", express.json(), async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Missing email or password" });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  if (cleanEmail === 'test@dynamicmike.com' && password === 'test123') {
+    // Official test user, always allowed
+    return res.json({ success: true, agentId: 'reccdfQr5L46QVLiKdk', slug: 'mike-berry' });
+  }
+
+  // For any other email, look up the Agent_Profiles table to see if they have an active record and check subscription status.
+  try {
+    const searchRes = await teableDB.getRecords(TEABLE_AGENT_PROFILES_TABLE_ID);
+    if (searchRes && searchRes.data && searchRes.data.records) {
+      const matchingRecord = searchRes.data.records.find((r: any) => {
+        const name = (r.fields.Agent_Name || "").toLowerCase().replace(/\s+/g, '');
+        const domain = (r.fields.Primary_Domain || "").toLowerCase();
+        const emailUser = cleanEmail.split('@')[0];
+        const emailDomain = cleanEmail.split('@')[1];
+        
+        return (emailDomain === domain) || name.includes(emailUser);
+      });
+
+      if (matchingRecord) {
+        const status = matchingRecord.fields.Subscription_Status;
+        if (status === 'active') {
+          let slug = matchingRecord.fields.Slug;
+          if (!slug) {
+            if (matchingRecord.fields.ID === 1 || matchingRecord.id === 'reccdfQr5L46QVLiKdk') slug = 'mike-berry';
+            else if (matchingRecord.fields.ID === 2 || matchingRecord.id === 'recwhzWPWTQHswSKohV') slug = 'sarah-jenkins';
+            else slug = 'mike-berry';
+          }
+          return res.json({ success: true, agentId: matchingRecord.id, slug });
+        } else {
+          return res.status(402).json({ error: `Access Denied: Subscription status is "${status || 'inactive'}". Payment required.` });
+        }
+      }
+    }
+    return res.status(401).json({ error: "Access Denied: No active agent found with this email domain. Please subscribe via Stripe first." });
+  } catch (err: any) {
+    console.error("Auth Login Error:", err);
+    return res.status(500).json({ error: "Internal server error during authentication" });
   }
 });
 
@@ -1258,7 +1366,24 @@ Follow these rules strictly:
 // ------------------------------------------------------------------------------
 app.post("/api/profile/save", express.json(), async (req, res) => {
   try {
-    const { agentId, agentName, microNiche, profileImage, coverImage, bookingLink, domain, geoFocus, languages, reviews, zillowBlindData } = req.body;
+    const { 
+      agentId, 
+      agentName, 
+      microNiche, 
+      profileImage, 
+      coverImage, 
+      bookingLink, 
+      domain, 
+      geoFocus, 
+      languages, 
+      listToSaleRatio, 
+      investorRoi, 
+      socialLinks, 
+      contactCtaType, 
+      contactDetails, 
+      reviews, 
+      zillowBlindData 
+    } = req.body;
     
     if (!agentId) return res.status(400).json({ error: "Missing agentId" });
 
@@ -1310,6 +1435,30 @@ app.post("/api/profile/save", express.json(), async (req, res) => {
       agent.Booking_Link = bookingLink || agent.Booking_Link;
       agent.Primary_Domain = domain || agent.Primary_Domain;
       agent.Geo_Focus = geoFocus || agent.Geo_Focus;
+      
+      const listRatioVal = listToSaleRatio || "97.4%";
+      const roiVal = investorRoi || "11.2%";
+      agent.Metrics = [
+        { label: "AI Visibility", value: "98%" },
+        { label: "List-to-Sale Ratio", value: listRatioVal },
+        { label: "Investor ROI", value: roiVal }
+      ];
+
+      // Extract Instagram Link for local mock agent
+      const insta = socialLinks?.find((s: any) => s.platform.toLowerCase().includes('instagram'))?.url || '';
+      if (insta) {
+        agent.Instagram_Link = insta.startsWith('http') ? insta : `https://${insta}`;
+      }
+
+      // Extract Whatsapp Link for local mock agent
+      if (contactCtaType === 'WhatsApp Link' && contactDetails) {
+        const cleanedPhone = contactDetails.replace(/[^0-9]/g, '');
+        agent.Whatsapp_Link = `https://wa.me/${cleanedPhone}`;
+      } else if (contactCtaType === 'Phone Call' && contactDetails) {
+        agent.Whatsapp_Link = `tel:${contactDetails}`;
+      } else if (contactDetails) {
+        agent.Whatsapp_Link = contactDetails;
+      }
       
       if (agentName) {
         agent.Slug = agentName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
@@ -1369,8 +1518,34 @@ app.post("/api/profile/save", express.json(), async (req, res) => {
         } else {
           teablePayload.Language_Tokens = 'English';
         }
+        teablePayload.Languages = typeof languages === 'string' ? languages : languages.join(', ');
       }
-      if (bookingLink) teablePayload.Best_Contact_Method = bookingLink;
+      if (bookingLink) {
+        teablePayload.Best_Contact_Method = bookingLink;
+        teablePayload.Booking_Link = bookingLink;
+      }
+      if (profileImage) teablePayload.Profile_Image = profileImage;
+      if (coverImage) teablePayload.Cover_Image = coverImage;
+      if (domain) teablePayload.Primary_Domain = domain;
+      if (geoFocus) teablePayload.Geo_Focus = geoFocus;
+      if (listToSaleRatio) teablePayload.List_To_Sale_Ratio = listToSaleRatio;
+      if (investorRoi) teablePayload.Investor_Roi = investorRoi;
+
+      // Extract Instagram Link
+      const insta = socialLinks?.find((s: any) => s.platform.toLowerCase().includes('instagram'))?.url || '';
+      if (insta) {
+        teablePayload.Instagram_Link = insta.startsWith('http') ? insta : `https://${insta}`;
+      }
+
+      // Extract Whatsapp Link
+      if (contactCtaType === 'WhatsApp Link' && contactDetails) {
+        const cleanedPhone = contactDetails.replace(/[^0-9]/g, '');
+        teablePayload.Whatsapp_Link = `https://wa.me/${cleanedPhone}`;
+      } else if (contactCtaType === 'Phone Call' && contactDetails) {
+        teablePayload.Whatsapp_Link = `tel:${contactDetails}`;
+      } else if (contactDetails) {
+        teablePayload.Whatsapp_Link = contactDetails;
+      }
 
       let teableRecordId = agentId;
       if (agentId === 'agent_123') teableRecordId = 'reccdfQr5L46QVLiKdk';
@@ -1383,7 +1558,7 @@ app.post("/api/profile/save", express.json(), async (req, res) => {
           Authorization: `Bearer ${TEABLE_API_KEY}` 
         },
         body: JSON.stringify({
-          typecast: false,
+          typecast: true,
           record: { fields: teablePayload }
         })
       });

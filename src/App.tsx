@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import BillingTab from './BillingTab';
 interface Review {
   Client_Name: string;
@@ -14,6 +14,9 @@ interface FAQ {
 }
 
 export default function App() {
+  const navigate = useNavigate();
+  const [agentId, setAgentId] = useState('reccdfQr5L46QVLiKdk');
+  const [slug, setSlug] = useState('mike-berry');
   const [agentName, setAgentName] = useState('Mike Berry');
   const [microNiche, setMicroNiche] = useState('Pre-Construction & Luxury Investments in Playa del Carmen');
   const [domainUrl, setDomainUrl] = useState('RealAi.casa');
@@ -44,6 +47,8 @@ export default function App() {
   // Actionable Modal Inputs
   const [zillowUrl, setZillowUrl] = useState('');
   const [dreLicense, setDreLicense] = useState('');
+  const [listToSaleRatio, setListToSaleRatio] = useState('97.4%');
+  const [investorRoi, setInvestorRoi] = useState('11.2%');
   
   const [isImprovingNiche, setIsImprovingNiche] = useState(false);
   const [isImprovingKnowledge, setIsImprovingKnowledge] = useState(false);
@@ -62,6 +67,17 @@ export default function App() {
   const [lastSync, setLastSync] = useState('Not synced yet');
   const [interactionsThisMonth, setInteractionsThisMonth] = useState(0);
 
+  // Relational Reviews and FAQs manager state (Automatically synchronized)
+  const [reviews, setReviews] = useState<Review[]>([
+    { Client_Name: 'John & Linda Davidson', Optimized_Quote: 'Mike Berry identified an off-market beachfront penthouse pre-construction in Tankah Bay. He negotiated our closing costs down by 5% and secured a developer payment structure yielding a projected 10.2% net ROI.', Date: '2026-04-12' },
+    { Client_Name: 'Sofie Vance, Venture Capital Partner', Optimized_Quote: 'Mike\'s technical understanding of Playa del Carmen zoning laws and developer delivery schedules kept us out of two delayed projects. He guided us into an eco-condo in Aldea Zama that already has an active 9.8% rental return.', Date: '2026-05-02' }
+  ]);
+
+  const [faqs, setFaqs] = useState<FAQ[]>([
+    { Question_Prompt: 'What is the average ROI for rental properties in Tankah Bay?', Structured_Answer: 'As of 2026, premium beachfront condos in Tankah Bay generate an average cash-on-cash ROI of 9.4%, driven by luxury eco-tourism demand and capped local inventory.' },
+    { Question_Prompt: 'What are the closing costs for pre-construction properties in Playa del Carmen?', Structured_Answer: 'Average closing costs in Quintana Roo range between 5% and 8% of the acquisition price. This includes notary fees, local acquisition taxes, trust setup for foreigners, and registration fees.' }
+  ]);
+
   // Dynamically calculate and update optimization score in real-time
   useEffect(() => {
     let base = 80;
@@ -78,17 +94,6 @@ export default function App() {
     if (syncComplete) base = 100; // Indexing sync complete overrides to 100%
     setScore(Math.min(100, base));
   }, [agentName, microNiche, geoFocus, bookingLink, domain, languages, zillowUrl, dreLicense, reviews, faqs, syncComplete]);
-
-  // Relational Reviews and FAQs manager state (Automatically synchronized)
-  const [reviews, setReviews] = useState<Review[]>([
-    { Client_Name: 'John & Linda Davidson', Optimized_Quote: 'Mike Berry identified an off-market beachfront penthouse pre-construction in Tankah Bay. He negotiated our closing costs down by 5% and secured a developer payment structure yielding a projected 10.2% net ROI.', Date: '2026-04-12' },
-    { Client_Name: 'Sofie Vance, Venture Capital Partner', Optimized_Quote: 'Mike\'s technical understanding of Playa del Carmen zoning laws and developer delivery schedules kept us out of two delayed projects. He guided us into an eco-condo in Aldea Zama that already has an active 9.8% rental return.', Date: '2026-05-02' }
-  ]);
-
-  const [faqs, setFaqs] = useState<FAQ[]>([
-    { Question_Prompt: 'What is the average ROI for rental properties in Tankah Bay?', Structured_Answer: 'As of 2026, premium beachfront condos in Tankah Bay generate an average cash-on-cash ROI of 9.4%, driven by luxury eco-tourism demand and capped local inventory.' },
-    { Question_Prompt: 'What are the closing costs for pre-construction properties in Playa del Carmen?', Structured_Answer: 'Average closing costs in Quintana Roo range between 5% and 8% of the acquisition price. This includes notary fees, local acquisition taxes, trust setup for foreigners, and registration fees.' }
-  ]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -118,8 +123,11 @@ export default function App() {
   // Fetch Dashboard & Profile Data (Lazy Reset Trigger)
   const refreshDashboardData = async () => {
     try {
-      const agentId = 'agent_123'; 
-      const res = await fetch(`/api/dashboard/${agentId}`);
+      const loggedInUserStr = localStorage.getItem('entityos_user');
+      const loggedInUser = loggedInUserStr ? JSON.parse(loggedInUserStr) : null;
+      const resolvedAgentId = loggedInUser?.agentId || agentId;
+
+      const res = await fetch(`/api/dashboard/${resolvedAgentId}`);
       const data = await res.json();
       if (data && data.data && data.data.fields) {
         setInteractionsThisMonth(data.data.fields.Modal_Click_Count || 0);
@@ -136,12 +144,43 @@ export default function App() {
   };
 
   useEffect(() => {
-    refreshDashboardData();
+    const loggedInUserStr = localStorage.getItem('entityos_user');
+    const loggedInUser = loggedInUserStr ? JSON.parse(loggedInUserStr) : null;
+    
+    if (!loggedInUser) {
+      navigate('/login');
+      return;
+    }
+
+    const resolvedSlug = loggedInUser.slug || 'mike-berry';
+    const resolvedAgentId = loggedInUser.agentId || 'reccdfQr5L46QVLiKdk';
+    setSlug(resolvedSlug);
+    setAgentId(resolvedAgentId);
+
+    // Fetch Dashboard data dynamically
+    const loadDashboard = async () => {
+      try {
+        const res = await fetch(`/api/dashboard/${resolvedAgentId}`);
+        const data = await res.json();
+        if (data && data.data && data.data.fields) {
+          setInteractionsThisMonth(data.data.fields.Modal_Click_Count || 0);
+          const backendStatus = data.data.fields.Subscription_Status;
+          if (backendStatus === 'active') {
+            setPaymentStatus('active');
+          } else {
+            setPaymentStatus('failed');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+    loadDashboard();
 
     // Fetch initial profile values from read-only service
     const fetchProfile = async () => {
       try {
-        const res = await fetch('/api/profiles/mike-berry');
+        const res = await fetch(`/api/profiles/${resolvedSlug}`);
         if (res.ok) {
           const data = await res.json();
           setAgentName(data.Agent_Name);
@@ -153,11 +192,33 @@ export default function App() {
           setGeoFocus(data.Geo_Focus);
           setLanguages(data.Languages.join(', '));
           
+          if (data.Metrics && data.Metrics.length >= 3) {
+            setListToSaleRatio(data.Metrics[1].value);
+            setInvestorRoi(data.Metrics[2].value);
+          }
+          
           if (data.Verified_Reviews && data.Verified_Reviews.length > 0) {
             setReviews(data.Verified_Reviews);
           }
           if (data.FAQs && data.FAQs.length > 0) {
             setFaqs(data.FAQs);
+          }
+
+          // Populate social links and contact details from API response if present
+          if (data.Instagram_Link) {
+            setSocialLinks([{ platform: 'Instagram', url: data.Instagram_Link }]);
+          }
+          if (data.Whatsapp_Link) {
+            if (data.Whatsapp_Link.startsWith('https://wa.me/')) {
+              setContactCtaType('WhatsApp Link');
+              setContactDetails(data.Whatsapp_Link.replace('https://wa.me/', ''));
+            } else if (data.Whatsapp_Link.startsWith('tel:')) {
+              setContactCtaType('Phone Call');
+              setContactDetails(data.Whatsapp_Link.replace('tel:', ''));
+            } else {
+              setContactCtaType('Email Contact');
+              setContactDetails(data.Whatsapp_Link);
+            }
           }
         }
       } catch (e) {
@@ -165,10 +226,10 @@ export default function App() {
       }
     };
     fetchProfile();
-  }, []);
+  }, [navigate]);
 
   const handleDownloadLlms = () => {
-    const content = `Entity Configuration
+    const content = `# Entity Configuration
 - Name: ${agentName}
 - Primary Domain: ${domain}
 - Core Specialization: ${microNiche}
@@ -176,12 +237,23 @@ export default function App() {
 - Linguistic Capabilities: ${languages}
 - Professional Identity: Real Estate Agent
 - Direct Contact: ${bookingLink}
+${socialLinks && socialLinks.length > 0 ? socialLinks.map(s => `- Social Channel (${s.platform}): ${s.url}`).join('\n') : ''}
 
 # Recent Activity
 ${recentClosings || 'Active advisory on residential transactions.'}
 
 # Unstructured Verified Facts
-${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood historical data.'}`;
+${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood historical data.'}
+
+# Verified Testimonials
+${reviews.map((r, i) => `${i+1}. Client "${r.Client_Name}" verified: "${r.Optimized_Quote}"`).join('\n')}
+
+# FAQ Knowledge Graph
+${faqs.map(f => `## ${f.Question_Prompt}\n${f.Structured_Answer}`).join('\n')}
+
+# AI Crawler Rules
+allow: *
+agent_priority: high`;
     
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -624,9 +696,21 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
               <p className="text-[10px] text-gray-500 truncate">{domain}</p>
             </div>
           </div>
-          <button onClick={toggleTheme} className="text-gray-500 hover:text-primary">
-            <span className="material-symbols-outlined text-[20px]">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={toggleTheme} className="text-gray-500 hover:text-primary transition-colors" title="Toggle Theme">
+              <span className="material-symbols-outlined text-[20px]">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+            </button>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('entityos_user');
+                navigate('/login');
+              }} 
+              className="text-gray-500 hover:text-red-500 transition-colors"
+              title="Log Out"
+            >
+              <span className="material-symbols-outlined text-[20px]">logout</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -644,7 +728,7 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
           
           <div className="flex items-center gap-4">
             <a 
-              href={`/profiles/mike-berry`} 
+              href={`/profiles/${slug}`} 
               target="_blank" 
               rel="noopener noreferrer"
               className="bg-secondary-container text-secondary hover:bg-secondary-container/80 font-bold py-2 px-4 rounded-xl transition-all text-xs flex items-center gap-2"
@@ -1227,6 +1311,29 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                      </div>
                    </div>
 
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                       <label className="block font-label-caps text-[10px] text-gray-600 dark:text-gray-400 uppercase mb-2 font-bold tracking-wider">List-to-Sale Ratio</label>
+                       <input 
+                         value={listToSaleRatio}
+                         onChange={(e) => setListToSaleRatio(e.target.value)}
+                         placeholder="e.g. 97.4%"
+                         className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:border-primary rounded-xl p-3.5 transition-all duration-200 text-sm shadow-sm" 
+                         type="text" 
+                       />
+                     </div>
+                     <div>
+                       <label className="block font-label-caps text-[10px] text-gray-600 dark:text-gray-400 uppercase mb-2 font-bold tracking-wider">Investor ROI</label>
+                       <input 
+                         value={investorRoi}
+                         onChange={(e) => setInvestorRoi(e.target.value)}
+                         placeholder="e.g. 11.2%"
+                         className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:border-primary rounded-xl p-3.5 transition-all duration-200 text-sm shadow-sm" 
+                         type="text" 
+                       />
+                     </div>
+                   </div>
+
                    <div>
                      <label className="block font-label-caps text-[10px] text-gray-600 dark:text-gray-400 uppercase mb-2 font-bold tracking-wider">Recent Closings</label>
                      <textarea 
@@ -1631,8 +1738,9 @@ ${zillowBlindData || 'Subject Matter Expert in local zoning and neighborhood his
                            method: 'POST',
                            headers: { 'Content-Type': 'application/json' },
                            body: JSON.stringify({
-                             agentId: 'agent_123', 
+                             agentId, 
                              agentName, microNiche, profileImage, coverImage, bookingLink, domain, geoFocus, languages,
+                             listToSaleRatio, investorRoi, socialLinks, contactCtaType, contactDetails,
                              reviews, zillowBlindData
                            })
                          });
