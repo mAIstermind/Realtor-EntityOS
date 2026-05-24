@@ -982,7 +982,7 @@ app.post("/api/engine/index-submit", express.json(), async (req, res) => {
 // ------------------------------------------------------------------------------
 
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
-  stripeAccount: 'acct_1SH58uFFwQ7QWJU8'
+  apiVersion: '2025-02-24.acacia' as any,
 });
 
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
