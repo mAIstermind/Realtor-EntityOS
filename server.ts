@@ -1291,6 +1291,7 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
     const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | undefined;
 
     if (!paymentIntent || !paymentIntent.client_secret) {
+      console.error("[Stripe Debug] Missing PaymentIntent for subscription. Full Invoice:", JSON.stringify(invoice, null, 2));
       throw new Error(`Stripe Error: Failed to generate a payment intent. Invoice Status: ${invoice?.status}. Has Payment Intent: ${!!paymentIntent}`);
     }
 
