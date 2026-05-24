@@ -1271,7 +1271,7 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
       if (createRes && createRes.data && createRes.data.records && createRes.data.records[0]) {
         recordId = createRes.data.records[0].id;
       } else {
-        throw new Error("Failed to create agent record in Teable");
+        throw new Error(`Teable Error: ${(createRes as any)?.message || 'Unknown creation failure'}`);
       }
     }
 
@@ -1288,7 +1288,11 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
     });
 
     const invoice = subscription.latest_invoice as any;
-    const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
+    const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | undefined;
+
+    if (!paymentIntent || !paymentIntent.client_secret) {
+      throw new Error(`Stripe Error: Failed to generate a payment intent. Invoice Status: ${invoice?.status}. Has Payment Intent: ${!!paymentIntent}`);
+    }
 
     res.json({
       success: true,
