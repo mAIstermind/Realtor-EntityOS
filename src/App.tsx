@@ -57,6 +57,12 @@ export default function App() {
   const [assistantGoal, setAssistantGoal] = useState('Lead Capture (Capture Name & Number)');
   const [trainingDocs, setTrainingDocs] = useState<{name: string, size: number}[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'active' | 'failed'>('active');
+  const [subscriptionPlan, setSubscriptionPlan] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
+  const [prType, setPrType] = useState<'listing' | 'sale' | 'niche'>('listing');
+  const [prDetails, setPrDetails] = useState('');
+  const [prResult, setPrResult] = useState<string | null>(null);
+  const [isPrGenerating, setIsPrGenerating] = useState(false);
+  const [isPrSyndicating, setIsPrSyndicating] = useState(false);
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncComplete, setSyncComplete] = useState(false);
@@ -131,6 +137,7 @@ export default function App() {
       const data = await res.json();
       if (data && data.data && data.data.fields) {
         setInteractionsThisMonth(data.data.fields.Modal_Click_Count || 0);
+        setSubscriptionPlan(data.data.fields.Subscription_Plan || 'monthly');
         const backendStatus = data.data.fields.Subscription_Status;
         if (backendStatus === 'active') {
           setPaymentStatus('active');
@@ -168,6 +175,7 @@ export default function App() {
         const data = await res.json();
         if (data && data.data && data.data.fields) {
           setInteractionsThisMonth(data.data.fields.Modal_Click_Count || 0);
+          setSubscriptionPlan(data.data.fields.Subscription_Plan || 'monthly');
           const backendStatus = data.data.fields.Subscription_Status;
           if (backendStatus === 'active') {
             setPaymentStatus('active');
@@ -1038,6 +1046,203 @@ agent_priority: high`;
                   </div>
                 </div>
               </div>
+
+              {/* 3. AI Press Release Generator (AEO Matrix) */}
+              <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-xl">newspaper</span>
+                      3. AI Press Release Generator (AEO Citation Matrix)
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">Generate answer-first, crawler-optimized press releases to syndicate/index your properties and insight updates.</p>
+                  </div>
+                  
+                  {/* Tier / Limit tracker badge */}
+                  <div className="shrink-0 flex items-center">
+                    {subscriptionPlan === 'annual' ? (
+                      <span className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Plan: Annual (Unlimited Matrix Access)
+                      </span>
+                    ) : (
+                      <span className="bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold px-3 py-1.5 rounded-full">
+                        Plan: {subscriptionPlan.charAt(0).toUpperCase() + subscriptionPlan.slice(1)} (Limit: 1/month)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  {/* Left Controls */}
+                  <div className="md:col-span-1 space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Press Release Type</label>
+                      <select 
+                        value={prType}
+                        onChange={(e) => setPrType(e.target.value as any)}
+                        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-gray-950 dark:text-white focus:border-primary rounded-xl p-3.5 text-sm"
+                      >
+                        <option value="listing">New Property Listing</option>
+                        <option value="sale">Closed Deal / Recent Sale</option>
+                        <option value="niche">Local Market Update</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Key Event Details</label>
+                      <textarea
+                        value={prDetails}
+                        onChange={(e) => setPrDetails(e.target.value)}
+                        rows={5}
+                        placeholder={
+                          prType === 'listing' 
+                            ? "e.g., 3-bed beachfront condo in Tankah Bay, priced at $1.2M, with private plunge pool and 10.5% projected rental yield."
+                            : prType === 'sale'
+                            ? "e.g., Closed Aldea Zama penthouse sale for $850k in 14 days on market, cash buyer, AMPI regulation clearance managed."
+                            : "e.g., Playa del Carmen pre-construction inventory is down 15% in Q2 2026, cash flow yields are averaging 9.8% cash-on-cash."
+                        }
+                        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-gray-950 dark:text-white focus:border-primary rounded-xl p-3.5 text-sm resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!prDetails.trim()) {
+                          showToast("Please enter some transaction/listing details first!");
+                          return;
+                        }
+                        
+                        // Enforce monthly limit for non-annual plans in frontend
+                        if (subscriptionPlan !== 'annual') {
+                          const localUsageCount = Number(localStorage.getItem('entityos_pr_usage') || '0');
+                          if (localUsageCount >= 1) {
+                            showToast("Monthly usage reached (1/1). Upgrade to Annual for unlimited AEO Press Releases!");
+                            return;
+                          }
+                        }
+
+                        setIsPrGenerating(true);
+                        setPrResult(null);
+                        try {
+                          const res = await fetch("/api/press-releases/generate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ agentId, type: prType, details: prDetails })
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.success) {
+                            setPrResult(data.markdown);
+                            showToast("AEO Press Release drafted successfully!");
+                            
+                            // Increment local usage counter for non-annual tiers
+                            if (subscriptionPlan !== 'annual') {
+                              const usageCount = Number(localStorage.getItem('entityos_pr_usage') || '0') + 1;
+                              localStorage.setItem('entityos_pr_usage', usageCount.toString());
+                            }
+                          } else {
+                            showToast(data.error || "Generation failed.");
+                          }
+                        } catch (err) {
+                          showToast("Failed to connect to generator endpoint.");
+                        } finally {
+                          setIsPrGenerating(false);
+                        }
+                      }}
+                      disabled={isPrGenerating}
+                      className="w-full bg-primary text-white font-bold text-xs py-3.5 rounded-xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {isPrGenerating ? (
+                        <>
+                          <span className="animate-spin border-2 border-white border-t-transparent w-4 h-4 rounded-full"></span>
+                          Writing Press Release...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                          Generate AEO Press Release
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Right Output Window */}
+                  <div className="md:col-span-2 flex flex-col h-full min-h-[300px] border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-slate-950 text-gray-200">
+                    <div className="bg-slate-900 border-b border-gray-800 px-4 py-3 flex justify-between items-center shrink-0">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                        Optimized Press Release Output (Markdown)
+                      </span>
+                      {prResult && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => copyToClipboard(prResult, "AEO Press Release")}
+                            className="bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">content_copy</span> Copy
+                          </button>
+                          
+                          <button
+                            disabled={isPrSyndicating}
+                            onClick={async () => {
+                              setIsPrSyndicating(true);
+                              try {
+                                const res = await fetch("/api/automation/dispatch", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    propertyId: `pr_${Date.now()}`,
+                                    listing_description: prResult,
+                                    micro_niche: microNiche,
+                                    agent_name: agentName,
+                                    agent_record_id: agentId,
+                                    root_domain: domainUrl,
+                                    profile_url: `https://${domainUrl}/profiles/${slug}`
+                                  })
+                                });
+                                if (res.ok) {
+                                  showToast("Syndication & search crawler submission triggered!");
+                                } else {
+                                  showToast("Syndication dispatcher returned an error.");
+                                }
+                              } catch (e) {
+                                showToast("Failed to trigger syndication pipeline.");
+                              } finally {
+                                setIsPrSyndicating(false);
+                              }
+                            }}
+                            className="bg-primary hover:bg-primary/90 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            {isPrSyndicating ? (
+                              <>
+                                <span className="animate-spin border border-white border-t-transparent w-3 h-3 rounded-full"></span>
+                                Submitting...
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-[12px]">share</span> Syndicate & Index
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4 flex-1 overflow-y-auto font-mono text-xs leading-relaxed max-h-[350px]">
+                      {prResult ? (
+                        <pre className="whitespace-pre-wrap">{prResult}</pre>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 py-12">
+                          <span className="material-symbols-outlined text-3xl mb-2 text-gray-700">drafts</span>
+                          <p>Enter details and click generate to write a crawler-optimized press release.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
 

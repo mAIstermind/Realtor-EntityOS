@@ -43,6 +43,8 @@ try {
   console.warn("Could not initialize GoogleGenAI:", e);
 }
 
+const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
+
 // ------------------------------------------------------------------------------
 // Teable / Database Configuration & Dual-Mode Relational DB Layer
 // ------------------------------------------------------------------------------
@@ -1308,6 +1310,99 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
   }
 });
 
+// Helper: Fetch subscription plan type dynamically from Stripe
+async function getAgentPlanType(stripeCustomerId: string): Promise<string> {
+  if (!stripeCustomerId || stripeCustomerId.startsWith('cus_test_reg') || stripeCustomerId === 'undefined') {
+    return 'monthly'; // default fallback for test/unlinked users
+  }
+  try {
+    const subscriptions = await stripeClient.subscriptions.list({
+      customer: stripeCustomerId,
+      status: 'active',
+      limit: 1
+    });
+    if (subscriptions.data.length === 0) {
+      const allSubs = await stripeClient.subscriptions.list({
+        customer: stripeCustomerId,
+        limit: 1
+      });
+      if (allSubs.data.length === 0) return 'monthly';
+      const priceId = allSubs.data[0].items.data[0]?.price?.id;
+      if (priceId === process.env.STRIPE_PRICE_ANNUAL) return 'annual';
+      if (priceId === process.env.STRIPE_PRICE_QUARTERLY) return 'quarterly';
+      return 'monthly';
+    }
+    const priceId = subscriptions.data[0].items.data[0]?.price?.id;
+    if (priceId === process.env.STRIPE_PRICE_ANNUAL) return 'annual';
+    if (priceId === process.env.STRIPE_PRICE_QUARTERLY) return 'quarterly';
+    return 'monthly';
+  } catch (error) {
+    console.error("Error fetching agent plan from Stripe:", error);
+    return 'monthly';
+  }
+}
+
+// Route: AI Press Release Generator
+app.post("/api/press-releases/generate", express.json(), async (req, res) => {
+  const { agentId, type, details } = req.body;
+  if (!agentId || !type || !details) {
+    return res.status(400).json({ error: "Missing required parameters: agentId, type, details" });
+  }
+
+  try {
+    const agent = await getAgentById(agentId);
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    const typeLabel = type === 'listing' ? 'New Property Listing' : (type === 'sale' ? 'Recent Closed Transaction' : 'Local Market Niche Insight');
+
+    const prompt = `You are an elite SEO/AEO real estate copywriter. Write a search-engine and answer-engine optimized (AEO) press release for real estate agent "${agent.Agent_Name}", who specializes in the micro-niche "${agent.Micro_Niche}" in the market area "${agent.Geo_Focus}".
+    
+Press Release Type: ${typeLabel}
+Specific Details Provided: ${details}
+
+Requirements:
+1. Write in a formal, highly authoritative, third-person journalistic style.
+2. Structure the press release with:
+   - A catchy, search-optimized headline.
+   - An introductory dateline paragraph (city, state/country, year 2026).
+   - Body paragraphs explaining the significance of the transaction, listing, or insight.
+3. Inject H2 headers formatted as direct questions search engines frequently ask, followed immediately by answer-first factual statements. Follow the rule: "Format local knowledge strings into Answer-First H2 prompt structures."
+   For example, create sections like:
+   "## What makes [neighborhood/property] a high-performing real estate investment?"
+   followed by a direct, fact-dense answer of 1-2 sentences.
+4. Integrate local context (niche terms, trust models like trust Fideicomiso, state AMPI, etc.) and quantitative metrics (prices, yields, ROI percentages, timelines).
+5. Output the result in clean Markdown format. Do not write introductory chatter or conversational preamble. Output only the markdown press release itself.`;
+
+    let generatedText = '';
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: { temperature: 0.7 }
+      });
+      generatedText = (response.text || "").trim();
+    } catch (err: any) {
+      console.warn("[Press Release] Gemini failed, falling back to OpenAI...", err.message);
+      const openAiRes = await openaiClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }]
+      });
+      generatedText = (openAiRes.choices[0].message.content || "").trim();
+    }
+
+    if (!generatedText) {
+      throw new Error("Unable to generate press release content from AI engines.");
+    }
+
+    res.json({ success: true, markdown: generatedText });
+  } catch (error: any) {
+    console.error("Press Release Generation Error:", error);
+    res.status(500).json({ error: error.message || "Failed to generate press release" });
+  }
+});
+
 // ------------------------------------------------------------------------------
 // Legacy Dashboard API (Includes payment status fields)
 // ------------------------------------------------------------------------------
@@ -1320,6 +1415,8 @@ app.get("/api/dashboard/:agentId", async (req, res) => {
       return res.status(404).json({ error: "Agent not found" });
     }
 
+    const planType = await getAgentPlanType(agent.Stripe_Customer_ID);
+
     res.json({
       data: {
         id: agent.id,
@@ -1329,7 +1426,8 @@ app.get("/api/dashboard/:agentId", async (req, res) => {
           Modal_Click_Count: agent.Modal_Click_Count,
           Last_Reset_Month: agent.Last_Reset_Month,
           Subscription_Status: agent.Subscription_Status,
-          Is_Publicly_Accessible: agent.Is_Publicly_Accessible
+          Is_Publicly_Accessible: agent.Is_Publicly_Accessible,
+          Subscription_Plan: planType
         }
       }
     });
@@ -1857,8 +1955,6 @@ Follow these rules strictly:
 // ------------------------------------------------------------------------------
 // Native Automation Dispatcher (OpenClaw -> Backend)
 // ------------------------------------------------------------------------------
-
-const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
 
 const dispatchRateLimits = new Map<string, number>();
 
